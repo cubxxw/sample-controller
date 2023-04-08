@@ -1,0 +1,28 @@
+kind: ClusterRole
+metadata:
+  name: operator-role
+rules:
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - mydomain.com
+  resources:
+  - genericdaemons
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete

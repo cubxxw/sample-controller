@@ -1,0 +1,13 @@
+apiVersion: controller.nsddd.top/v1beta1
+kind: Blog
+metadata:
+  name: example-blog
+spec:
+  deploymentName: example-blog
+  replicas: 1
+  title: "example blog"
+  author: "Xinwei Xiong"
+  content: "blog content"
+  lastUpdate: "2023-04-09"
+  prev: ""
+  next: ""

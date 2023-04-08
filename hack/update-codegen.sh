@@ -25,12 +25,28 @@ CODEGEN_PKG=${CODEGEN_PKG:-$(cd "${SCRIPT_ROOT}"; ls -d -1 ./vendor/k8s.io/code-
 # --output-base    because this script should also be able to run inside the vendor dir of
 #                  k8s.io/kubernetes. The output-base is needed for the generators to output into the vendor dir
 #                  instead of the $GOPATH directly. For normal projects this can be dropped.
+echo "===> Generating code..."
 "${CODEGEN_PKG}/generate-groups.sh" "deepcopy,client,informer,lister" \
   k8s.io/sample-controller/pkg/generated \
   k8s.io/sample-controller/pkg/apis \
   samplecontroller:v1alpha1 \
   --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
   --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt
-
 # To use your own boilerplate text append:
 #   --go-header-file "${SCRIPT_ROOT}"/hack/custom-boilerplate.go.txt
+
+echo "===> Generating genericdaemon code"
+"${CODEGEN_PKG}/generate-groups.sh" "deepcopy,client,informer,lister" \
+  k8s.io/sample-controller/pkg/generated \
+  k8s.io/sample-controller/pkg/apis \
+  genericdaemon:v1beta1 \
+  --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
+  --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt
+
+echo "===> Generating genericdaemon code for Blog"
+"${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
+  k8s.io/sample-controller/pkg/client_Blog \
+  k8s.io/sample-controller/pkg/apis \
+  shidacontroller:v1Bate1 \
+  --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
+  --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt
