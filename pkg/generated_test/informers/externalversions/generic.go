@@ -23,7 +23,7 @@ import (
 
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
-	v1beta1 "k8s.io/sample-controller/pkg/apis/nsdddcontroller/v1beta1"
+	v1beta1 "k8s.io/sample-controller/pkg/apis/genericdaemon/v1beta1"
 )
 
 // GenericInformer is type of SharedIndexInformer which will locate and delegate to other
@@ -52,9 +52,9 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=controller.nsddd.top, Version=v1beta1
-	case v1beta1.SchemeGroupVersion.WithResource("blogs"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Controller().V1beta1().Blogs().Informer()}, nil
+	// Group=mydomain.com, Version=v1beta1
+	case v1beta1.SchemeGroupVersion.WithResource("genericdaemons"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Mydomain().V1beta1().Genericdaemons().Informer()}, nil
 
 	}
 

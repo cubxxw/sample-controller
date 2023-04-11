@@ -14,6 +14,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -32,13 +33,13 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"k8s.io/client-go/util/workqueue"
-	"k8s.io/klog"
+	"k8s.io/klog/v2"
 
-	nsdddv1alpha1 "k8s.io/sample-controller/pkg/apis/samplecontroller/v1alpha1"
+	nsdddv1beta1 "k8s.io/sample-controller/pkg/apis/nsdddcontroller/v1beta1"
 	clientset "k8s.io/sample-controller/pkg/generated_blog/clientset/versioned"
 	samplescheme "k8s.io/sample-controller/pkg/generated_blog/clientset/versioned/scheme"
-	informers "k8s.io/sample-controller/pkg/generated_blog/informers/externalversions/samplecontroller/v1alpha1"
-	listers "k8s.io/sample-controller/pkg/generated_blog/listers/samplecontroller/v1alpha1"
+	informers "k8s.io/sample-controller/pkg/generated_blog/informers/externalversions/nsdddcontroller/v1beta1"
+	listers "k8s.io/sample-controller/pkg/generated_blog/listers/nsdddcontroller/v1beta1"
 )
 
 const blogControllerAgentName = "nsddd-controller"
@@ -83,18 +84,21 @@ type BlogController struct {
 
 // NewBlogController returns a new sample controller
 func NewBlogController(
+	ctx context.Context,
 	kubeclientset kubernetes.Interface,
 	nsdddclientset clientset.Interface,
 	deploymentInformer appsinformers.DeploymentInformer,
 	blogInformer informers.BlogInformer) *BlogController {
 
+	logger := klog.FromContext(ctx)
+
 	// Create event broadcaster
 	// Add sample-controller types to the default Kubernetes Scheme so Events can be
 	// logged for sample-controller types.
 	utilruntime.Must(samplescheme.AddToScheme(scheme.Scheme))
-	klog.V(4).Info("Creating event broadcaster")
+	logger.V(4).Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(klog.Infof)
+	eventBroadcaster.StartStructuredLogging(0)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: blogControllerAgentName})
 
@@ -109,7 +113,7 @@ func NewBlogController(
 		recorder:          recorder,
 	}
 
-	klog.Info("Setting up event handlers")
+	logger.Info("Setting up event handlers")
 	// Set up an event handler for when Blog resources change
 	blogInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.enqueueBlog,
@@ -145,28 +149,30 @@ func NewBlogController(
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *BlogController) Run(threadiness int, stopCh <-chan struct{}) error {
+func (c *BlogController) Run(ctx context.Context, threadiness int, stopCh <-chan struct{}) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
+	logger := klog.FromContext(ctx)
+
 	// Start the informer factories to begin populating the informer caches
-	klog.Info("Starting Blog controller")
+	logger.Info("Starting Blog controller")
 
 	// Wait for the caches to be synced before starting workers
-	klog.Info("Waiting for informer caches to sync")
+	logger.Info("Waiting for informer caches to sync")
 	if ok := cache.WaitForCacheSync(stopCh, c.deploymentsSynced, c.blogsSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
-	klog.Info("Starting workers")
+	logger.Info("Starting workers")
 	// Launch two workers to process Blog resources
 	for i := 0; i < threadiness; i++ {
 		go wait.Until(c.runWorker, time.Second, stopCh)
 	}
 
-	klog.Info("Started workers")
+	logger.Info("Started workers")
 	<-stopCh
-	klog.Info("Shutting down workers")
+	logger.Info("Shutting down workers")
 
 	return nil
 }
@@ -271,7 +277,7 @@ func (c *BlogController) syncHandler(key string) error {
 	deployment, err := c.deploymentsLister.Deployments(blog.Namespace).Get(deploymentName)
 	// If the resource doesn't exist, we'll create it
 	if errors.IsNotFound(err) {
-		deployment, err = c.kubeclientset.AppsV1().Deployments(blog.Namespace).Create(newBlogDeployment(blog))
+		deployment, err = c.kubeclientset.AppsV1().Deployments(blog.Namespace).Create(context.TODO(), newBlogDeployment(blog), metav1.CreateOptions{})
 	}
 
 	// If an error occurs during Get/Create, we'll requeue the item so we can
@@ -294,7 +300,7 @@ func (c *BlogController) syncHandler(key string) error {
 	// should update the Deployment resource.
 	if blog.Spec.Replicas != nil && *blog.Spec.Replicas != *deployment.Spec.Replicas {
 		klog.V(4).Infof("Blog %s replicas: %d, deployment replicas: %d", name, *blog.Spec.Replicas, *deployment.Spec.Replicas)
-		deployment, err = c.kubeclientset.AppsV1().Deployments(blog.Namespace).Update(newBlogDeployment(blog))
+		deployment, err = c.kubeclientset.AppsV1().Deployments(blog.Namespace).Update(context.TODO(), newBlogDeployment(blog), metav1.UpdateOptions{})
 	}
 
 	// If an error occurs during Update, we'll requeue the item so we can
@@ -315,7 +321,7 @@ func (c *BlogController) syncHandler(key string) error {
 	return nil
 }
 
-func (c *BlogController) updateBlogStatus(blog *nsdddv1alpha1.Blog, deployment *appsv1.Deployment) error {
+func (c *BlogController) updateBlogStatus(blog *nsdddv1beta1.Blog, deployment *appsv1.Deployment) error {
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// You can use DeepCopy() to make a deep copy of original object and modify this copy
 	// Or create a copy manually for better performance
@@ -325,7 +331,7 @@ func (c *BlogController) updateBlogStatus(blog *nsdddv1alpha1.Blog, deployment *
 	// we must use Update instead of UpdateStatus to update the Status block of the Blog resource.
 	// UpdateStatus will not allow changes to the Spec of the resource,
 	// which is ideal for ensuring nothing other than resource status has been updated.
-	_, err := c.nsdddclientset.SamplecontrollerV1alpha1().Blogs(blog.Namespace).Update(blogCopy)
+	_, err := c.nsdddclientset.ControllerV1beta1().Blogs(blog.Namespace).UpdateStatus(context.TODO(), blogCopy, metav1.UpdateOptions{})
 	return err
 }
 
@@ -385,7 +391,7 @@ func (c *BlogController) handleObject(obj interface{}) {
 // newBlogDeployment creates a new Deployment for a Blog resource. It also sets
 // the appropriate OwnerReferences on the resource so handleObject can discover
 // the Blog resource that 'owns' it.
-func newBlogDeployment(blog *nsdddv1alpha1.Blog) *appsv1.Deployment {
+func newBlogDeployment(blog *nsdddv1beta1.Blog) *appsv1.Deployment {
 	labels := map[string]string{
 		"app":        "nginx",
 		"controller": blog.Name,
@@ -396,8 +402,8 @@ func newBlogDeployment(blog *nsdddv1alpha1.Blog) *appsv1.Deployment {
 			Namespace: blog.Namespace,
 			OwnerReferences: []metav1.OwnerReference{
 				*metav1.NewControllerRef(blog, schema.GroupVersionKind{
-					Group:   nsdddv1alpha1.SchemeGroupVersion.Group,
-					Version: nsdddv1alpha1.SchemeGroupVersion.Version,
+					Group:   nsdddv1beta1.SchemeGroupVersion.Group,
+					Version: nsdddv1beta1.SchemeGroupVersion.Version,
 					Kind:    "Blog",
 				}),
 			},

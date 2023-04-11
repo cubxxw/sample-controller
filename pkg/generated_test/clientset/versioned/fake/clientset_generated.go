@@ -24,9 +24,9 @@ import (
 	"k8s.io/client-go/discovery"
 	fakediscovery "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/testing"
-	clientset "k8s.io/sample-controller/pkg/generated_blog/clientset/versioned"
-	controllerv1beta1 "k8s.io/sample-controller/pkg/generated_blog/clientset/versioned/typed/nsdddcontroller/v1beta1"
-	fakecontrollerv1beta1 "k8s.io/sample-controller/pkg/generated_blog/clientset/versioned/typed/nsdddcontroller/v1beta1/fake"
+	clientset "k8s.io/sample-controller/pkg/generated_test/clientset/versioned"
+	mydomainv1beta1 "k8s.io/sample-controller/pkg/generated_test/clientset/versioned/typed/genericdaemon/v1beta1"
+	fakemydomainv1beta1 "k8s.io/sample-controller/pkg/generated_test/clientset/versioned/typed/genericdaemon/v1beta1/fake"
 )
 
 // NewSimpleClientset returns a clientset that will respond with the provided objects.
@@ -79,7 +79,7 @@ var (
 	_ testing.FakeClient  = &Clientset{}
 )
 
-// ControllerV1beta1 retrieves the ControllerV1beta1Client
-func (c *Clientset) ControllerV1beta1() controllerv1beta1.ControllerV1beta1Interface {
-	return &fakecontrollerv1beta1.FakeControllerV1beta1{Fake: &c.Fake}
+// MydomainV1beta1 retrieves the MydomainV1beta1Client
+func (c *Clientset) MydomainV1beta1() mydomainv1beta1.MydomainV1beta1Interface {
+	return &fakemydomainv1beta1.FakeMydomainV1beta1{Fake: &c.Fake}
 }

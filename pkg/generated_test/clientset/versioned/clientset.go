@@ -25,23 +25,23 @@ import (
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
-	controllerv1beta1 "k8s.io/sample-controller/pkg/generated_blog/clientset/versioned/typed/nsdddcontroller/v1beta1"
+	mydomainv1beta1 "k8s.io/sample-controller/pkg/generated_test/clientset/versioned/typed/genericdaemon/v1beta1"
 )
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	ControllerV1beta1() controllerv1beta1.ControllerV1beta1Interface
+	MydomainV1beta1() mydomainv1beta1.MydomainV1beta1Interface
 }
 
 // Clientset contains the clients for groups.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	controllerV1beta1 *controllerv1beta1.ControllerV1beta1Client
+	mydomainV1beta1 *mydomainv1beta1.MydomainV1beta1Client
 }
 
-// ControllerV1beta1 retrieves the ControllerV1beta1Client
-func (c *Clientset) ControllerV1beta1() controllerv1beta1.ControllerV1beta1Interface {
-	return c.controllerV1beta1
+// MydomainV1beta1 retrieves the MydomainV1beta1Client
+func (c *Clientset) MydomainV1beta1() mydomainv1beta1.MydomainV1beta1Interface {
+	return c.mydomainV1beta1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -88,7 +88,7 @@ func NewForConfigAndClient(c *rest.Config, httpClient *http.Client) (*Clientset,
 
 	var cs Clientset
 	var err error
-	cs.controllerV1beta1, err = controllerv1beta1.NewForConfigAndClient(&configShallowCopy, httpClient)
+	cs.mydomainV1beta1, err = mydomainv1beta1.NewForConfigAndClient(&configShallowCopy, httpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -113,7 +113,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.controllerV1beta1 = controllerv1beta1.New(c)
+	cs.mydomainV1beta1 = mydomainv1beta1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

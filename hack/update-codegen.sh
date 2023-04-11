@@ -35,18 +35,18 @@ echo "===> Generating code..."
 # To use your own boilerplate text append:
 #   --go-header-file "${SCRIPT_ROOT}"/hack/custom-boilerplate.go.txt
 
-echo "===> Generating genericdaemon code"
+echo "===> Generating genericdaemon code for generated teste"
 "${CODEGEN_PKG}/generate-groups.sh" "deepcopy,client,informer,lister" \
-  k8s.io/sample-controller/pkg/generated \
+  k8s.io/sample-controller/pkg/generated_test \
   k8s.io/sample-controller/pkg/apis \
   genericdaemon:v1beta1 \
   --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
   --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt
 
-echo "===> Generating genericdaemon code for Blog"
+echo "===> Generating nsdddcontroller code for Blog"
 "${CODEGEN_PKG}"/generate-groups.sh "deepcopy,client,informer,lister" \
-  k8s.io/sample-controller/pkg/client_Blog \
+  k8s.io/sample-controller/pkg/generated_blog \
   k8s.io/sample-controller/pkg/apis \
-  shidacontroller:v1Bate1 \
+  nsdddcontroller:v1beta1 \
   --output-base "$(dirname "${BASH_SOURCE[0]}")/../../.." \
   --go-header-file "${SCRIPT_ROOT}"/hack/boilerplate.go.txt

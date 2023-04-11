@@ -27,9 +27,9 @@ import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
-	versioned "k8s.io/sample-controller/pkg/generated/clientset/versioned"
-	internalinterfaces "k8s.io/sample-controller/pkg/generated/informers/externalversions/internalinterfaces"
-	samplecontroller "k8s.io/sample-controller/pkg/generated/informers/externalversions/samplecontroller"
+	versioned "k8s.io/sample-controller/pkg/generated_blog/clientset/versioned"
+	internalinterfaces "k8s.io/sample-controller/pkg/generated_blog/informers/externalversions/internalinterfaces"
+	nsdddcontroller "k8s.io/sample-controller/pkg/generated_blog/informers/externalversions/nsdddcontroller"
 )
 
 // SharedInformerOption defines the functional option type for SharedInformerFactory.
@@ -194,25 +194,25 @@ func (f *sharedInformerFactory) InformerFor(obj runtime.Object, newFunc internal
 //
 // It is typically used like this:
 //
-//	ctx, cancel := context.Background()
-//	defer cancel()
-//	factory := NewSharedInformerFactory(client, resyncPeriod)
-//	defer factory.WaitForStop()    // Returns immediately if nothing was started.
-//	genericInformer := factory.ForResource(resource)
-//	typedInformer := factory.SomeAPIGroup().V1().SomeType()
-//	factory.Start(ctx.Done())          // Start processing these informers.
-//	synced := factory.WaitForCacheSync(ctx.Done())
-//	for v, ok := range synced {
-//	    if !ok {
-//	        fmt.Fprintf(os.Stderr, "caches failed to sync: %v", v)
-//	        return
-//	    }
-//	}
+//   ctx, cancel := context.Background()
+//   defer cancel()
+//   factory := NewSharedInformerFactory(client, resyncPeriod)
+//   defer factory.WaitForStop()    // Returns immediately if nothing was started.
+//   genericInformer := factory.ForResource(resource)
+//   typedInformer := factory.SomeAPIGroup().V1().SomeType()
+//   factory.Start(ctx.Done())          // Start processing these informers.
+//   synced := factory.WaitForCacheSync(ctx.Done())
+//   for v, ok := range synced {
+//       if !ok {
+//           fmt.Fprintf(os.Stderr, "caches failed to sync: %v", v)
+//           return
+//       }
+//   }
 //
-//	// Creating informers can also be created after Start, but then
-//	// Start must be called again:
-//	anotherGenericInformer := factory.ForResource(resource)
-//	factory.Start(ctx.Done())
+//   // Creating informers can also be created after Start, but then
+//   // Start must be called again:
+//   anotherGenericInformer := factory.ForResource(resource)
+//   factory.Start(ctx.Done())
 type SharedInformerFactory interface {
 	internalinterfaces.SharedInformerFactory
 
@@ -243,9 +243,9 @@ type SharedInformerFactory interface {
 	// client.
 	InformerFor(obj runtime.Object, newFunc internalinterfaces.NewInformerFunc) cache.SharedIndexInformer
 
-	Samplecontroller() samplecontroller.Interface
+	Controller() nsdddcontroller.Interface
 }
 
-func (f *sharedInformerFactory) Samplecontroller() samplecontroller.Interface {
-	return samplecontroller.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Controller() nsdddcontroller.Interface {
+	return nsdddcontroller.New(f, f.namespace, f.tweakListOptions)
 }
