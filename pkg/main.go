@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package pkg
 
 import (
 	"flag"
@@ -25,9 +25,6 @@ import (
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
-	clientset "k8s.io/sample-controller/pkg/generated/clientset/versioned"
-	informers "k8s.io/sample-controller/pkg/generated/informers/externalversions"
-
 	blogclientset "k8s.io/sample-controller/pkg/generated_blog/clientset/versioned"
 	bloginformers "k8s.io/sample-controller/pkg/generated_blog/informers/externalversions"
 	"k8s.io/sample-controller/pkg/signals"
@@ -39,6 +36,7 @@ var (
 )
 
 func main() {
+	klog.InitFlags(nil)
 	flag.Parse()
 
 	// set up signals so we handle the shutdown signal gracefully
@@ -48,29 +46,22 @@ func main() {
 	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 	if err != nil {
 		logger.Error(err, "Error building kubeconfig")
-		klog.Fatalf("Error building kubeconfig: %s", err.Error())
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		logger.Error(err, "Error building kubernetes clientset")
-		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
-	}
-
-	exampleClient, err := clientset.NewForConfig(cfg)
-	if err != nil {
-		logger.Error(err, "Error building exampleClient is clientset")
-		klog.Fatalf("Error building example clientset: %s", err.Error())
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
 	blogClient, err := blogclientset.NewForConfig(cfg)
 	if err != nil {
-		logger.Error(err, "Error building blogClient is clientset")
-		klog.Fatalf("Error building blog clientset: %s", err.Error())
+		logger.Error(err, "Error building kubernetes clientset")
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	exampleInformerFactory := informers.NewSharedInformerFactory(exampleClient, time.Second*30)
 	blogInformerFactory := bloginformers.NewSharedInformerFactory(blogClient, time.Second*30)
 
 	blogController := NewBlogController(ctx, kubeClient, blogClient,
@@ -80,18 +71,11 @@ func main() {
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(ctx.Done())
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
 	kubeInformerFactory.Start(ctx.Done())
-	exampleInformerFactory.Start(ctx.Done())
 	blogInformerFactory.Start(ctx.Done())
 
-	go func() {
-		err = blogController.Run(2, ctx.Done())
-		if err != nil {
-			klog.Fatalf("Error running controller: %s", err.Error())
-		}
-	}()
-
-	if err = blogController.Run(2, ctx.Done()); err != nil {
-		klog.Fatalf("Error running controller: %s", err.Error())
+	if err = blogController.Run(ctx, 2); err != nil {
+		logger.Error(err, "Error running controller")
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 }
 

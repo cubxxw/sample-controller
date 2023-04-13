@@ -11,7 +11,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package pkg
 
 import (
 	"context"
@@ -149,7 +149,7 @@ func NewBlogController(
 // as syncing informer caches and starting workers. It will block until stopCh
 // is closed, at which point it will shutdown the workqueue and wait for
 // workers to finish processing their current work items.
-func (c *BlogController) Run(ctx context.Context, threadiness int, stopCh <-chan struct{}) error {
+func (c *BlogController) Run(ctx context.Context, workers int) error {
 	defer utilruntime.HandleCrash()
 	defer c.workqueue.ShutDown()
 
@@ -160,35 +160,35 @@ func (c *BlogController) Run(ctx context.Context, threadiness int, stopCh <-chan
 
 	// Wait for the caches to be synced before starting workers
 	logger.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.deploymentsSynced, c.blogsSynced); !ok {
+
+	if ok := cache.WaitForCacheSync(ctx.Done(), c.deploymentsSynced, c.blogsSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
 	logger.Info("Starting workers")
 	// Launch two workers to process Blog resources
-	for i := 0; i < threadiness; i++ {
-		go wait.Until(c.runWorker, time.Second, stopCh)
+
+	for i := 0; i < workers; i++ {
+		go wait.UntilWithContext(ctx, c.runWorker, time.Second)
 	}
 
 	logger.Info("Started workers")
-	<-stopCh
+	<-ctx.Done()
 	logger.Info("Shutting down workers")
 
 	return nil
 }
 
-// runWorker is a long-running function that will continually call the
-// processNextWorkItem function in order to read and process a message on the
-// workqueue.
-func (c *BlogController) runWorker() {
-	for c.processNextWorkItem() {
+func (c *BlogController) runWorker(ctx context.Context) {
+	for c.processNextWorkItem(ctx) {
 	}
 }
 
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
-func (c *BlogController) processNextWorkItem() bool {
+func (c *BlogController) processNextWorkItem(ctx context.Context) bool {
 	obj, shutdown := c.workqueue.Get()
+	logger := klog.FromContext(ctx)
 
 	if shutdown {
 		return false
@@ -220,7 +220,7 @@ func (c *BlogController) processNextWorkItem() bool {
 		}
 		// Run the syncHandler, passing it the namespace/name string of the
 		// Blog resource to be synced.
-		if err := c.syncHandler(key); err != nil {
+		if err := c.syncHandler(ctx, key); err != nil {
 			// Put the item back on the workqueue to handle any transient errors.
 			c.workqueue.AddRateLimited(key)
 			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
@@ -228,7 +228,7 @@ func (c *BlogController) processNextWorkItem() bool {
 		// Finally, if no error occurs we Forget this item so it does not
 		// get queued again until another change happens.
 		c.workqueue.Forget(obj)
-		klog.Infof("Successfully synced '%s'", key)
+		logger.Info("Successfully synced", "resourceName", key)
 		return nil
 	}(obj)
 
@@ -240,11 +240,10 @@ func (c *BlogController) processNextWorkItem() bool {
 	return true
 }
 
-// syncHandler compares the actual state with the desired, and attempts to
-// converge the two. It then updates the Status block of the Blog resource
-// with the current status of the resource.
-func (c *BlogController) syncHandler(key string) error {
+func (c *BlogController) syncHandler(ctx context.Context, key string) error {
 	// Convert the namespace/name string into a distinct namespace and name
+	logger := klog.LoggerWithValues(klog.FromContext(ctx), "resourceName", key)
+
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
 		utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
@@ -288,23 +287,23 @@ func (c *BlogController) syncHandler(key string) error {
 	}
 
 	// If the Deployment is not controlled by this Blog resource, we should log
-	// a warning to the event recorder and ret
+	// a warning to the event recorder and return error msg.
 	if !metav1.IsControlledBy(deployment, blog) {
 		msg := fmt.Sprintf(BlogMessageResourceExists, deployment.Name)
 		c.recorder.Event(blog, corev1.EventTypeWarning, BlogErrResourceExists, msg)
-		return fmt.Errorf(msg)
+		return fmt.Errorf("%s", msg)
 	}
 
 	// If this number of the replicas on the Blog resource is specified, and the
 	// number does not equal the current desired replicas on the Deployment, we
 	// should update the Deployment resource.
 	if blog.Spec.Replicas != nil && *blog.Spec.Replicas != *deployment.Spec.Replicas {
-		klog.V(4).Infof("Blog %s replicas: %d, deployment replicas: %d", name, *blog.Spec.Replicas, *deployment.Spec.Replicas)
+		logger.V(4).Info("Update deployment resource", "currentReplicas", *blog.Spec.Replicas, "desiredReplicas", *deployment.Spec.Replicas)
 		deployment, err = c.kubeclientset.AppsV1().Deployments(blog.Namespace).Update(context.TODO(), newBlogDeployment(blog), metav1.UpdateOptions{})
 	}
 
 	// If an error occurs during Update, we'll requeue the item so we can
-	// attempt processing again later. THis could have been caused by a
+	// attempt processing again later. This could have been caused by a
 	// temporary network failure, or any other transient reason.
 	if err != nil {
 		return err
